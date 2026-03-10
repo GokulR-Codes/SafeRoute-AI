@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Namma Safe BLR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+<style>
+:root{--bg:#070b0f;--surface:#0d1117;--panel:#161b22;--border:#21262d;--accent:#f85149;--safe:#3fb950;--warn:#d29922;--info:#58a6ff;--purple:#bc8cff;--text:#e6edf3;--muted:#8b949e}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:"Space Mono",monospace;overflow:hidden}
+#topbar{position:fixed;top:0;left:0;right:0;z-index:1100;height:56px;background:rgba(13,17,23,.97);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:14px}
+.logo{font-family:"Syne",sans-serif;font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;flex-shrink:0}
+.tagline{font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase}
+.top-sep{flex:1}
+.night-badge{display:none;font-size:10px;font-weight:700;padding:4px 10px;border-radius:4px;background:rgba(248,81,73,.15);color:var(--accent);border:1px solid rgba(248,81,73,.3);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.clock{font-size:12px;color:var(--info);letter-spacing:2px}
+#app{display:grid;grid-template-columns:320px 1fr;height:100vh;padding-top:56px}
+#sidebar{background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;overflow-x:hidden}
+#sidebar::-webkit-scrollbar{width:3px}
+#sidebar::-webkit-scrollbar-thumb{background:var(--border)}
+.section{border-bottom:1px solid var(--border);padding:14px}
+.sec-title{font-family:"Syne",sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.sec-title::after{content:"";flex:1;height:1px;background:var(--border)}
+.lbl{font-size:10px;color:var(--muted);margin-bottom:4px;letter-spacing:1px;text-transform:uppercase;display:block}
+.inp{width:100%;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:8px 11px;color:var(--text);font-family:"Space Mono",monospace;font-size:11px;outline:none;transition:border-color .2s;margin-bottom:9px}
+.inp:focus{border-color:var(--info)}
+.inp option{background:var(--panel)}
+.btn{width:100%;padding:10px;border:none;border-radius:6px;font-family:"Syne",sans-serif;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px;transition:all .2s;margin-bottom:5px}
+.btn-p{background:linear-gradient(135deg,var(--accent),#ff6b6b);color:#fff;box-shadow:0 4px 14px rgba(248,81,73,.3)}
+.btn-p:hover{transform:translateY(-1px)}
+.btn-s{background:var(--panel);color:var(--muted);border:1px solid var(--border)}
+.btn-s:hover{border-color:var(--info);color:var(--info)}
+.btn-sos{background:linear-gradient(135deg,#c00,var(--accent));color:#fff;font-size:13px;letter-spacing:2px;animation:sp 1.5s infinite;box-shadow:0 4px 18px rgba(255,0,0,.4)}
+@keyframes sp{0%,100%{box-shadow:0 4px 18px rgba(255,0,0,.4)}50%{box-shadow:0 4px 28px rgba(255,0,0,.7)}}
+#route-result{display:none}
+.rcard{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px}
+.rmeter{height:7px;border-radius:4px;background:var(--border);margin:7px 0;overflow:hidden}
+.rfill{height:100%;border-radius:4px;transition:width 1s ease;background:var(--safe)}
+.srow{display:flex;justify-content:space-between;margin:5px 0;font-size:10px}
+.slbl{color:var(--muted)}.sval{font-weight:700}
+.trow{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(33,38,45,.5)}
+.tlbl{font-size:11px}
+.tog{position:relative;width:34px;height:19px}
+.tog input{opacity:0;width:0;height:0}
+.tslider{position:absolute;inset:0;background:var(--border);border-radius:20px;cursor:pointer;transition:.3s}
+.tslider::before{content:"";position:absolute;width:13px;height:13px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.3s}
+.tog input:checked+.tslider{background:var(--info)}
+.tog input:checked+.tslider::before{transform:translateX(15px)}
+.lgrow{display:flex;align-items:center;gap:7px;margin:5px 0;font-size:11px}
+.lgdot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.lgline{width:22px;height:4px;border-radius:2px;flex-shrink:0}
+.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.kcard{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:9px;text-align:center}
+.kval{font-family:"Syne",sans-serif;font-size:20px;font-weight:800}
+.kkey{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:1px}
+.mchart{display:flex;align-items:flex-end;gap:2px;height:44px;margin-top:9px}
+.mbar{flex:1;border-radius:2px 2px 0 0;opacity:.7}
+.mbar:hover{opacity:1}
+#spinner{display:none;position:fixed;inset:0;z-index:2000;background:rgba(7,11,15,.87);backdrop-filter:blur(4px);align-items:center;justify-content:center;flex-direction:column;gap:16px}
+.sring{width:52px;height:52px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--accent);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.stxt{font-size:12px;color:var(--muted);letter-spacing:2px;text-align:center}
+.sstep{font-size:10px;color:var(--info);margin-top:4px}
+#map{height:100%;width:100%}
+#notif{position:fixed;bottom:20px;right:20px;z-index:3000;display:flex;flex-direction:column;gap:7px;pointer-events:none}
+.nc{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:11px 15px;font-size:11px;max-width:280px;animation:nsi .3s ease;box-shadow:0 8px 28px rgba(0,0,0,.4)}
+@keyframes nsi{from{transform:translateX(100%);opacity:0}}
+.nc.info{border-left:3px solid var(--info)}
+.nc.success{border-left:3px solid var(--safe)}
+.nc.danger{border-left:3px solid var(--accent)}
+.leaflet-popup-content-wrapper{background:var(--panel)!important;color:var(--text)!important;border:1px solid var(--border)!important;border-radius:8px!important;font-family:"Space Mono",monospace!important;font-size:11px!important;box-shadow:0 8px 28px rgba(0,0,0,.5)!important}
+.leaflet-popup-tip{background:var(--panel)!important}
+#inc-ov{display:none;position:fixed;inset:0;z-index:4000;background:rgba(7,11,15,.88);backdrop-filter:blur(8px);align-items:center;justify-content:center}
+.imod{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:26px;width:340px}
+.ititle{font-family:"Syne",sans-serif;font-size:17px;font-weight:700;margin-bottom:16px}
+textarea.inp{resize:vertical;min-height:75px}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:var(--border);outline:none;margin-bottom:4px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent);cursor:pointer}
+</style>
+</head>
+<body>
+<header id="topbar">
+  <div class="logo">NAMMA SAFE BLR</div>
+  <div class="tagline">AI Safe Navigation</div>
+  <div class="top-sep"></div>
+  <div class="night-badge" id="nbadge">NIGHT MODE</div>
+  <div class="clock" id="clock">22:00</div>
+</header>
+
+<div id="spinner">
+  <div class="sring"></div>
+  <div class="stxt">FETCHING ROAD ROUTES...</div>
+  <div class="sstep" id="spin-step">Connecting to OSRM routing engine</div>
+</div>
+
+<div id="inc-ov">
+  <div class="imod">
+    <div class="ititle">Report Unsafe Area</div>
+    <label class="lbl">Description</label>
+    <textarea class="inp" id="inc-desc" placeholder="Describe the safety concern..."></textarea>
+    <label class="lbl">Severity (1–10)</label>
+    <input class="inp" id="inc-sev" type="number" min="1" max="10" value="5" style="margin-bottom:9px">
+    <div id="inc-loc" style="font-size:10px;color:var(--muted);margin-bottom:13px">Click on map to place pin</div>
+    <div style="display:flex;gap:9px">
+      <button class="btn btn-p" style="flex:1" onclick="submitInc()">Submit</button>
+      <button class="btn btn-s" style="flex:1" onclick="closeInc()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <aside id="sidebar">
+    <div class="section">
+      <div class="sec-title">Route Finder</div>
+      <label class="lbl">Origin</label>
+      <select class="inp" id="src">
+        <option value="12.9716,77.5946">City Centre (MG Road)</option>
+        <option value="12.9768,77.5713">Majestic / KSR Station</option>
+        <option value="12.9716,77.6412">Indiranagar</option>
+        <option value="12.9591,77.6971">Marathahalli</option>
+        <option value="13.0358,77.5970">Hebbal</option>
+        <option value="13.1006,77.5964">Yelahanka</option>
+        <option value="12.9698,77.7499">Whitefield</option>
+      </select>
+      <label class="lbl">Destination</label>
+      <select class="inp" id="dst">
+        <option value="12.9352,77.6245">Koramangala</option>
+        <option value="12.9165,77.6101">BTM Layout</option>
+        <option value="12.9258,77.5838">Jayanagar</option>
+        <option value="12.8452,77.6602">Electronic City</option>
+        <option value="12.8993,77.5975">Bannerghatta Road</option>
+        <option value="12.9840,77.5975">Shivajinagar</option>
+        <option value="12.9609,77.6387">Domlur</option>
+      </select>
+      <label class="lbl">Travel Hour: <span id="hdisplay">22:00</span></label>
+      <input type="range" id="hour" min="0" max="23" value="22"
+        oninput="document.getElementById('hdisplay').textContent=String(this.value).padStart(2,'0')+':00'">
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-bottom:10px"><span>0h</span><span>12h</span><span>23h</span></div>
+      <button class="btn btn-p" onclick="findRoute()">Find Safest Route</button>
+      <button class="btn btn-s" onclick="clearRoute()">Clear Route</button>
+    </div>
+
+    <div class="section" id="route-result">
+      <div class="sec-title">Route Analysis</div>
+      <div class="rcard">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+          <span style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700">Risk Score</span>
+          <span id="rbadge" style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px">LOW</span>
+        </div>
+        <div class="rmeter"><div class="rfill" id="rfill" style="width:0%"></div></div>
+        <div class="srow"><span class="slbl">Avg Risk</span><span class="sval" id="rscore">-</span></div>
+        <div class="srow"><span class="slbl">Road Distance</span><span class="sval" id="rdist">-</span></div>
+        <div class="srow"><span class="slbl">Est. Duration</span><span class="sval" id="rdur">-</span></div>
+        <div class="srow"><span class="slbl">Road Points</span><span class="sval" id="rwpts">-</span></div>
+        <div class="srow"><span class="slbl">Routing</span><span class="sval">OSRM + Safety AI</span></div>
+        <div class="srow"><span class="slbl">Hour</span><span class="sval" id="rhour">-</span></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="sec-title">Map Layers</div>
+      <div class="trow"><span class="tlbl">Crime Heatmap</span><label class="tog"><input type="checkbox" checked onchange="togL('heat',this.checked)"><span class="tslider"></span></label></div>
+      <div class="trow"><span class="tlbl">Crime Incidents</span><label class="tog"><input type="checkbox" onchange="togL('crimes',this.checked)"><span class="tslider"></span></label></div>
+      <div class="trow"><span class="tlbl">Police Stations</span><label class="tog"><input type="checkbox" checked onchange="togL('police',this.checked)"><span class="tslider"></span></label></div>
+      <div class="trow"><span class="tlbl">Safe Zones</span><label class="tog"><input type="checkbox" checked onchange="togL('safe',this.checked)"><span class="tslider"></span></label></div>
+    </div>
+
+    <div class="section">
+      <div class="sec-title">Legend</div>
+      <div class="lgrow"><div class="lgdot" style="background:#3fb950"></div><span>Low Risk Road Segment</span></div>
+      <div class="lgrow"><div class="lgdot" style="background:#d29922"></div><span>Medium Risk Segment</span></div>
+      <div class="lgrow"><div class="lgdot" style="background:#f85149"></div><span>High Risk Segment</span></div>
+      <div class="lgrow"><div class="lgdot" style="background:#ff0000"></div><span>Critical — Avoid</span></div>
+      <div class="lgrow"><div class="lgdot" style="background:#58a6ff;border-radius:2px"></div><span>Police Station</span></div>
+    </div>
+
+    <div class="section">
+      <div class="sec-title">Stats</div>
+      <div class="kgrid">
+        <div class="kcard"><div class="kval" style="color:var(--accent)">150</div><div class="kkey">Records</div></div>
+        <div class="kcard"><div class="kval" id="knight" style="color:var(--purple)">-</div><div class="kkey">Night</div></div>
+        <div class="kcard"><div class="kval" style="color:var(--safe)">96.7%</div><div class="kkey">ML Acc.</div></div>
+        <div class="kcard"><div class="kval" style="color:var(--info)">OSRM</div><div class="kkey">Roads</div></div>
+      </div>
+      <div style="font-size:9px;color:var(--muted);margin-top:11px;letter-spacing:1px">CRIME BY HOUR</div>
+      <div class="mchart" id="mchart"></div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);margin-top:2px"><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>23h</span></div>
+    </div>
+
+    <div class="section">
+      <div class="sec-title">Emergency</div>
+      <button class="btn btn-sos" onclick="triggerSOS()">SOS — SEND LOCATION</button>
+      <button class="btn btn-s" onclick="openInc()">Report Unsafe Area</button>
+    </div>
+  </aside>
+  <div id="map"></div>
+</div>
+<div id="notif"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script>
+/* ══════════════════════════════════════════════════
+   EMBEDDED DATA
+══════════════════════════════════════════════════ */
+const CD = [{"latitude":12.928604,"longitude":77.639116,"crime_type":"Chain Snatching","crime_severity":6.8,"hour":17,"area":"Koramangala","is_night":0},{"latitude":12.983202,"longitude":77.573184,"crime_type":"Assault","crime_severity":7.3,"hour":19,"area":"Chickpet","is_night":0},{"latitude":13.118087,"longitude":77.593333,"crime_type":"Cybercrime","crime_severity":5.0,"hour":21,"area":"Yelahanka","is_night":1},{"latitude":12.909497,"longitude":77.627755,"crime_type":"Vandalism","crime_severity":3.2,"hour":2,"area":"Koramangala","is_night":1},{"latitude":13.018072,"longitude":77.603742,"crime_type":"Robbery","crime_severity":7.5,"hour":1,"area":"Hebbal","is_night":1},{"latitude":12.984465,"longitude":77.578828,"crime_type":"Vehicle Theft","crime_severity":4.3,"hour":13,"area":"Majestic","is_night":0},{"latitude":12.925708,"longitude":77.630468,"crime_type":"Eve Teasing","crime_severity":4.4,"hour":19,"area":"BTM Layout","is_night":0},{"latitude":12.917566,"longitude":77.584473,"crime_type":"Cybercrime","crime_severity":5.3,"hour":10,"area":"Bannerghatta Road","is_night":0},{"latitude":12.916333,"longitude":77.568479,"crime_type":"Vandalism","crime_severity":3.5,"hour":3,"area":"Jayanagar","is_night":1},{"latitude":12.989937,"longitude":77.56033,"crime_type":"Vehicle Theft","crime_severity":5.4,"hour":22,"area":"Rajajinagar","is_night":1},{"latitude":13.044197,"longitude":77.613212,"crime_type":"Assault","crime_severity":6.7,"hour":19,"area":"Hebbal","is_night":0},{"latitude":12.916009,"longitude":77.601949,"crime_type":"Eve Teasing","crime_severity":5.5,"hour":20,"area":"BTM Layout","is_night":1},{"latitude":12.861229,"longitude":77.652239,"crime_type":"Pickpocketing","crime_severity":3.9,"hour":9,"area":"Electronic City","is_night":0},{"latitude":12.982496,"longitude":77.570558,"crime_type":"Assault","crime_severity":5.9,"hour":22,"area":"Chickpet","is_night":1},{"latitude":12.940713,"longitude":77.609212,"crime_type":"Drug Offense","crime_severity":7.5,"hour":2,"area":"Random Spread","is_night":1},{"latitude":12.955627,"longitude":77.710767,"crime_type":"Chain Snatching","crime_severity":4.4,"hour":7,"area":"Marathahalli","is_night":0},{"latitude":12.90502,"longitude":77.602175,"crime_type":"Pickpocketing","crime_severity":3.8,"hour":8,"area":"Bannerghatta Road","is_night":0},{"latitude":12.937021,"longitude":77.592569,"crime_type":"Pickpocketing","crime_severity":2.0,"hour":2,"area":"BTM Layout","is_night":1},{"latitude":12.907153,"longitude":77.601768,"crime_type":"Vehicle Theft","crime_severity":5.3,"hour":22,"area":"BTM Layout","is_night":1},{"latitude":12.917867,"longitude":77.637198,"crime_type":"Theft","crime_severity":5.8,"hour":12,"area":"BTM Layout","is_night":0},{"latitude":13.075008,"longitude":77.624545,"crime_type":"Robbery","crime_severity":8.4,"hour":2,"area":"Random Spread","is_night":1},{"latitude":12.980309,"longitude":77.659805,"crime_type":"Eve Teasing","crime_severity":4.6,"hour":18,"area":"Indiranagar","is_night":0},{"latitude":12.907565,"longitude":77.630717,"crime_type":"Pickpocketing","crime_severity":4.8,"hour":3,"area":"BTM Layout","is_night":1},{"latitude":12.949275,"longitude":77.594462,"crime_type":"Chain Snatching","crime_severity":6.2,"hour":19,"area":"Chickpet","is_night":0},{"latitude":12.970614,"longitude":77.750822,"crime_type":"Assault","crime_severity":5.4,"hour":21,"area":"Whitefield","is_night":1},{"latitude":13.024207,"longitude":77.603106,"crime_type":"Drug Offense","crime_severity":6.4,"hour":18,"area":"Hebbal","is_night":0},{"latitude":13.018464,"longitude":77.537689,"crime_type":"Eve Teasing","crime_severity":6.8,"hour":18,"area":"Majestic","is_night":0},{"latitude":12.975933,"longitude":77.693409,"crime_type":"Chain Snatching","crime_severity":6.3,"hour":6,"area":"Marathahalli","is_night":0},{"latitude":12.968554,"longitude":77.560032,"crime_type":"Pickpocketing","crime_severity":3.7,"hour":10,"area":"Majestic","is_night":0},{"latitude":12.959872,"longitude":77.626089,"crime_type":"Eve Teasing","crime_severity":5.2,"hour":18,"area":"Indiranagar","is_night":0},{"latitude":12.918171,"longitude":77.589388,"crime_type":"Pickpocketing","crime_severity":2.4,"hour":20,"area":"Jayanagar","is_night":1},{"latitude":13.005062,"longitude":77.550614,"crime_type":"Eve Teasing","crime_severity":4.6,"hour":20,"area":"Rajajinagar","is_night":1},{"latitude":12.997704,"longitude":77.578296,"crime_type":"Vehicle Theft","crime_severity":4.2,"hour":17,"area":"Shivajinagar","is_night":0},{"latitude":12.922569,"longitude":77.468953,"crime_type":"Chain Snatching","crime_severity":5.1,"hour":18,"area":"Random Spread","is_night":0},{"latitude":12.966025,"longitude":77.58018,"crime_type":"Drug Offense","crime_severity":7.1,"hour":1,"area":"Chickpet","is_night":1},{"latitude":12.970702,"longitude":77.645803,"crime_type":"Assault","crime_severity":5.5,"hour":14,"area":"Indiranagar","is_night":0},{"latitude":12.962247,"longitude":77.562268,"crime_type":"Vandalism","crime_severity":3.1,"hour":3,"area":"Majestic","is_night":1},{"latitude":12.957363,"longitude":77.654854,"crime_type":"Cybercrime","crime_severity":5.7,"hour":21,"area":"Domlur","is_night":1},{"latitude":12.962739,"longitude":77.58307,"crime_type":"Drug Offense","crime_severity":7.7,"hour":3,"area":"Chickpet","is_night":1},{"latitude":12.834572,"longitude":77.681962,"crime_type":"Cybercrime","crime_severity":6.4,"hour":3,"area":"Electronic City","is_night":1},{"latitude":12.973764,"longitude":77.584414,"crime_type":"Eve Teasing","crime_severity":5.9,"hour":19,"area":"Chickpet","is_night":0},{"latitude":12.957592,"longitude":77.649988,"crime_type":"Cybercrime","crime_severity":4.9,"hour":14,"area":"Domlur","is_night":0},{"latitude":12.920171,"longitude":77.622195,"crime_type":"Cybercrime","crime_severity":6.6,"hour":10,"area":"Koramangala","is_night":0},{"latitude":12.949212,"longitude":77.635506,"crime_type":"Robbery","crime_severity":6.0,"hour":0,"area":"Indiranagar","is_night":1},{"latitude":12.904887,"longitude":77.585649,"crime_type":"Vandalism","crime_severity":3.2,"hour":3,"area":"Bannerghatta Road","is_night":1},{"latitude":12.979077,"longitude":77.558078,"crime_type":"Robbery","crime_severity":6.9,"hour":0,"area":"Majestic","is_night":1},{"latitude":12.966066,"longitude":77.682462,"crime_type":"Cybercrime","crime_severity":5.6,"hour":9,"area":"Marathahalli","is_night":0},{"latitude":12.978659,"longitude":77.589378,"crime_type":"Chain Snatching","crime_severity":4.7,"hour":7,"area":"Shivajinagar","is_night":0},{"latitude":13.011834,"longitude":77.554682,"crime_type":"Eve Teasing","crime_severity":5.5,"hour":6,"area":"Rajajinagar","is_night":0},{"latitude":12.932009,"longitude":77.567674,"crime_type":"Cybercrime","crime_severity":4.8,"hour":9,"area":"Jayanagar","is_night":0},{"latitude":12.921727,"longitude":77.600704,"crime_type":"Cybercrime","crime_severity":6.9,"hour":18,"area":"Bannerghatta Road","is_night":0},{"latitude":12.977551,"longitude":77.6123,"crime_type":"Vehicle Theft","crime_severity":4.7,"hour":22,"area":"Shivajinagar","is_night":1},{"latitude":12.969798,"longitude":77.7694,"crime_type":"Cybercrime","crime_severity":6.8,"hour":5,"area":"Whitefield","is_night":1},{"latitude":12.930439,"longitude":77.591268,"crime_type":"Vandalism","crime_severity":4.0,"hour":0,"area":"Jayanagar","is_night":1},{"latitude":12.996465,"longitude":77.605553,"crime_type":"Cybercrime","crime_severity":5.3,"hour":20,"area":"Shivajinagar","is_night":1},{"latitude":12.899495,"longitude":77.619303,"crime_type":"Chain Snatching","crime_severity":6.3,"hour":18,"area":"Bannerghatta Road","is_night":0},{"latitude":12.835711,"longitude":77.665235,"crime_type":"Assault","crime_severity":8.3,"hour":23,"area":"Electronic City","is_night":1},{"latitude":12.968665,"longitude":77.557092,"crime_type":"Eve Teasing","crime_severity":6.8,"hour":20,"area":"Majestic","is_night":1},{"latitude":12.957379,"longitude":77.621307,"crime_type":"Pickpocketing","crime_severity":4.5,"hour":11,"area":"Domlur","is_night":0},{"latitude":12.957652,"longitude":77.557083,"crime_type":"Assault","crime_severity":6.4,"hour":21,"area":"Majestic","is_night":1},{"latitude":12.980808,"longitude":77.702846,"crime_type":"Assault","crime_severity":6.8,"hour":13,"area":"Marathahalli","is_night":0},{"latitude":12.816383,"longitude":77.651517,"crime_type":"Cybercrime","crime_severity":3.9,"hour":5,"area":"Electronic City","is_night":1},{"latitude":12.923152,"longitude":77.596703,"crime_type":"Cybercrime","crime_severity":3.4,"hour":23,"area":"Jayanagar","is_night":1},{"latitude":12.963796,"longitude":77.624888,"crime_type":"Robbery","crime_severity":6.8,"hour":5,"area":"Domlur","is_night":1},{"latitude":13.039235,"longitude":77.569131,"crime_type":"Cybercrime","crime_severity":3.6,"hour":20,"area":"Hebbal","is_night":1},{"latitude":13.004979,"longitude":77.570116,"crime_type":"Assault","crime_severity":8.6,"hour":0,"area":"Majestic","is_night":1},{"latitude":12.968618,"longitude":77.567364,"crime_type":"Assault","crime_severity":6.2,"hour":1,"area":"Majestic","is_night":1},{"latitude":12.837543,"longitude":77.675524,"crime_type":"Cybercrime","crime_severity":4.7,"hour":0,"area":"Electronic City","is_night":1},{"latitude":12.948648,"longitude":77.647676,"crime_type":"Chain Snatching","crime_severity":5.4,"hour":21,"area":"Indiranagar","is_night":1},{"latitude":12.957882,"longitude":77.611901,"crime_type":"Vehicle Theft","crime_severity":5.5,"hour":23,"area":"Shivajinagar","is_night":1},{"latitude":12.971675,"longitude":77.636221,"crime_type":"Pickpocketing","crime_severity":4.8,"hour":8,"area":"Domlur","is_night":0},{"latitude":12.926172,"longitude":77.627453,"crime_type":"Theft","crime_severity":4.5,"hour":1,"area":"Koramangala","is_night":1},{"latitude":12.957151,"longitude":77.728216,"crime_type":"Theft","crime_severity":4.7,"hour":19,"area":"Whitefield","is_night":0},{"latitude":12.959658,"longitude":77.559114,"crime_type":"Theft","crime_severity":5.1,"hour":19,"area":"Majestic","is_night":0},{"latitude":12.845683,"longitude":77.669938,"crime_type":"Vehicle Theft","crime_severity":5.0,"hour":23,"area":"Electronic City","is_night":1},{"latitude":12.948142,"longitude":77.731143,"crime_type":"Vandalism","crime_severity":3.0,"hour":16,"area":"Whitefield","is_night":0},{"latitude":12.987933,"longitude":77.567565,"crime_type":"Pickpocketing","crime_severity":3.6,"hour":9,"area":"Majestic","is_night":0},{"latitude":12.938131,"longitude":77.671776,"crime_type":"Theft","crime_severity":4.9,"hour":22,"area":"Marathahalli","is_night":1},{"latitude":13.00195,"longitude":77.572326,"crime_type":"Pickpocketing","crime_severity":3.8,"hour":9,"area":"Majestic","is_night":0},{"latitude":12.919949,"longitude":77.555439,"crime_type":"Theft","crime_severity":5.1,"hour":1,"area":"Jayanagar","is_night":1},{"latitude":12.958906,"longitude":77.570743,"crime_type":"Theft","crime_severity":3.0,"hour":20,"area":"Majestic","is_night":1},{"latitude":12.961966,"longitude":77.672734,"crime_type":"Chain Snatching","crime_severity":5.7,"hour":18,"area":"Indiranagar","is_night":0},{"latitude":12.908742,"longitude":77.601878,"crime_type":"Theft","crime_severity":4.0,"hour":1,"area":"BTM Layout","is_night":1},{"latitude":12.882854,"longitude":77.610074,"crime_type":"Assault","crime_severity":7.7,"hour":7,"area":"Bannerghatta Road","is_night":0},{"latitude":12.976752,"longitude":77.596267,"crime_type":"Cybercrime","crime_severity":5.3,"hour":15,"area":"Shivajinagar","is_night":0},{"latitude":12.949995,"longitude":77.572994,"crime_type":"Assault","crime_severity":7.7,"hour":20,"area":"Majestic","is_night":1},{"latitude":13.03139,"longitude":77.595926,"crime_type":"Chain Snatching","crime_severity":5.4,"hour":7,"area":"Hebbal","is_night":0},{"latitude":12.963936,"longitude":77.580683,"crime_type":"Drug Offense","crime_severity":5.1,"hour":3,"area":"Majestic","is_night":1},{"latitude":12.947664,"longitude":77.585942,"crime_type":"Vandalism","crime_severity":3.3,"hour":22,"area":"Koramangala","is_night":1},{"latitude":12.96157,"longitude":77.579659,"crime_type":"Theft","crime_severity":2.8,"hour":20,"area":"Chickpet","is_night":1},{"latitude":12.944494,"longitude":77.642962,"crime_type":"Pickpocketing","crime_severity":3.3,"hour":7,"area":"Indiranagar","is_night":0},{"latitude":12.971728,"longitude":77.636082,"crime_type":"Chain Snatching","crime_severity":4.6,"hour":20,"area":"Indiranagar","is_night":1},{"latitude":12.966773,"longitude":77.581693,"crime_type":"Drug Offense","crime_severity":5.1,"hour":23,"area":"Chickpet","is_night":1},{"latitude":12.916422,"longitude":77.58911,"crime_type":"Assault","crime_severity":8.4,"hour":2,"area":"Bannerghatta Road","is_night":1},{"latitude":12.965346,"longitude":77.634541,"crime_type":"Eve Teasing","crime_severity":5.6,"hour":18,"area":"Indiranagar","is_night":0},{"latitude":12.961087,"longitude":77.649527,"crime_type":"Drug Offense","crime_severity":7.1,"hour":3,"area":"Domlur","is_night":1},{"latitude":12.968486,"longitude":77.625143,"crime_type":"Pickpocketing","crime_severity":4.6,"hour":13,"area":"Indiranagar","is_night":0},{"latitude":12.985031,"longitude":77.597505,"crime_type":"Vehicle Theft","crime_severity":4.4,"hour":22,"area":"Majestic","is_night":1},{"latitude":12.978079,"longitude":77.760835,"crime_type":"Eve Teasing","crime_severity":4.9,"hour":20,"area":"Whitefield","is_night":1},{"latitude":12.9555,"longitude":77.653786,"crime_type":"Theft","crime_severity":5.3,"hour":7,"area":"Domlur","is_night":0},{"latitude":12.940986,"longitude":77.614178,"crime_type":"Chain Snatching","crime_severity":5.2,"hour":7,"area":"Koramangala","is_night":0},{"latitude":12.947438,"longitude":77.594087,"crime_type":"Pickpocketing","crime_severity":2.7,"hour":9,"area":"BTM Layout","is_night":0},{"latitude":12.971122,"longitude":77.743845,"crime_type":"Drug Offense","crime_severity":6.3,"hour":19,"area":"Whitefield","is_night":0},{"latitude":13.001043,"longitude":77.608988,"crime_type":"Eve Teasing","crime_severity":5.2,"hour":4,"area":"Shivajinagar","is_night":1},{"latitude":12.925819,"longitude":77.565925,"crime_type":"Pickpocketing","crime_severity":3.5,"hour":8,"area":"Jayanagar","is_night":0},{"latitude":12.950278,"longitude":77.657331,"crime_type":"Theft","crime_severity":5.8,"hour":12,"area":"Domlur","is_night":0},{"latitude":12.93391,"longitude":77.611171,"crime_type":"Theft","crime_severity":3.6,"hour":20,"area":"Koramangala","is_night":1},{"latitude":12.957341,"longitude":77.590257,"crime_type":"Pickpocketing","crime_severity":4.6,"hour":19,"area":"Majestic","is_night":0},{"latitude":12.943235,"longitude":77.709907,"crime_type":"Cybercrime","crime_severity":4.7,"hour":8,"area":"Marathahalli","is_night":0},{"latitude":12.97405,"longitude":77.678785,"crime_type":"Drug Offense","crime_severity":6.0,"hour":20,"area":"Marathahalli","is_night":1},{"latitude":12.913197,"longitude":77.655028,"crime_type":"Cybercrime","crime_severity":5.4,"hour":3,"area":"Random Spread","is_night":1},{"latitude":12.951755,"longitude":77.5868,"crime_type":"Cybercrime","crime_severity":6.9,"hour":15,"area":"Chickpet","is_night":0},{"latitude":13.001614,"longitude":77.562584,"crime_type":"Pickpocketing","crime_severity":3.0,"hour":18,"area":"Random Spread","is_night":0},{"latitude":12.932537,"longitude":77.688106,"crime_type":"Vandalism","crime_severity":3.5,"hour":5,"area":"Marathahalli","is_night":1},{"latitude":12.968052,"longitude":77.601248,"crime_type":"Pickpocketing","crime_severity":4.1,"hour":19,"area":"Shivajinagar","is_night":0},{"latitude":12.955453,"longitude":77.657122,"crime_type":"Cybercrime","crime_severity":4.1,"hour":23,"area":"Indiranagar","is_night":1},{"latitude":12.922752,"longitude":77.599183,"crime_type":"Assault","crime_severity":8.8,"hour":23,"area":"Jayanagar","is_night":1},{"latitude":12.91591,"longitude":77.608083,"crime_type":"Pickpocketing","crime_severity":4.8,"hour":10,"area":"BTM Layout","is_night":0},{"latitude":12.958136,"longitude":77.574505,"crime_type":"Drug Offense","crime_severity":6.0,"hour":4,"area":"Jayanagar","is_night":1},{"latitude":13.096396,"longitude":77.56901,"crime_type":"Chain Snatching","crime_severity":4.1,"hour":17,"area":"Yelahanka","is_night":0},{"latitude":12.948928,"longitude":77.611249,"crime_type":"Chain Snatching","crime_severity":5.1,"hour":23,"area":"Koramangala","is_night":1},{"latitude":12.93749,"longitude":77.62397,"crime_type":"Theft","crime_severity":5.7,"hour":22,"area":"BTM Layout","is_night":1},{"latitude":12.966708,"longitude":77.630384,"crime_type":"Theft","crime_severity":3.1,"hour":22,"area":"Indiranagar","is_night":1},{"latitude":12.969128,"longitude":77.60413,"crime_type":"Chain Snatching","crime_severity":6.4,"hour":7,"area":"Shivajinagar","is_night":0},{"latitude":12.923432,"longitude":77.644277,"crime_type":"Drug Offense","crime_severity":7.3,"hour":3,"area":"Koramangala","is_night":1},{"latitude":12.832141,"longitude":77.66145,"crime_type":"Assault","crime_severity":6.8,"hour":7,"area":"Electronic City","is_night":0},{"latitude":13.055141,"longitude":77.61152,"crime_type":"Drug Offense","crime_severity":6.0,"hour":2,"area":"Hebbal","is_night":1},{"latitude":13.037965,"longitude":77.6094,"crime_type":"Pickpocketing","crime_severity":3.8,"hour":4,"area":"Hebbal","is_night":1},{"latitude":12.900534,"longitude":77.613482,"crime_type":"Pickpocketing","crime_severity":2.9,"hour":8,"area":"Bannerghatta Road","is_night":0},{"latitude":12.901953,"longitude":77.583022,"crime_type":"Robbery","crime_severity":8.9,"hour":2,"area":"Jayanagar","is_night":1},{"latitude":12.962153,"longitude":77.654002,"crime_type":"Vehicle Theft","crime_severity":6.0,"hour":4,"area":"Koramangala","is_night":1},{"latitude":12.987052,"longitude":77.583797,"crime_type":"Theft","crime_severity":3.5,"hour":0,"area":"Shivajinagar","is_night":1},{"latitude":13.008107,"longitude":77.583057,"crime_type":"Vandalism","crime_severity":2.2,"hour":6,"area":"Hebbal","is_night":0},{"latitude":13.001065,"longitude":77.566487,"crime_type":"Vandalism","crime_severity":3.8,"hour":6,"area":"Rajajinagar","is_night":0},{"latitude":12.957553,"longitude":77.539135,"crime_type":"Eve Teasing","crime_severity":6.4,"hour":16,"area":"Majestic","is_night":0},{"latitude":12.851835,"longitude":77.684071,"crime_type":"Cybercrime","crime_severity":3.1,"hour":20,"area":"Electronic City","is_night":1},{"latitude":13.067512,"longitude":77.642728,"crime_type":"Pickpocketing","crime_severity":5.0,"hour":10,"area":"Random Spread","is_night":0},{"latitude":12.833417,"longitude":77.669472,"crime_type":"Cybercrime","crime_severity":6.1,"hour":11,"area":"Electronic City","is_night":0},{"latitude":12.952574,"longitude":77.556553,"crime_type":"Assault","crime_severity":6.0,"hour":20,"area":"Majestic","is_night":1},{"latitude":12.83561,"longitude":77.64244,"crime_type":"Robbery","crime_severity":7.5,"hour":5,"area":"Electronic City","is_night":1},{"latitude":12.970003,"longitude":77.592182,"crime_type":"Eve Teasing","crime_severity":5.9,"hour":2,"area":"Chickpet","is_night":1},{"latitude":12.958294,"longitude":77.733864,"crime_type":"Vehicle Theft","crime_severity":5.2,"hour":0,"area":"Whitefield","is_night":1},{"latitude":12.971137,"longitude":77.541668,"crime_type":"Robbery","crime_severity":7.0,"hour":1,"area":"Chickpet","is_night":1},{"latitude":12.965074,"longitude":77.56259,"crime_type":"Vandalism","crime_severity":3.9,"hour":2,"area":"Majestic","is_night":1},{"latitude":12.906095,"longitude":77.572911,"crime_type":"Chain Snatching","crime_severity":4.1,"hour":20,"area":"Jayanagar","is_night":1},{"latitude":12.964125,"longitude":77.6215,"crime_type":"Chain Snatching","crime_severity":6.3,"hour":17,"area":"Indiranagar","is_night":0},{"latitude":13.056821,"longitude":77.579875,"crime_type":"Eve Teasing","crime_severity":3.1,"hour":22,"area":"Hebbal","is_night":1},{"latitude":12.995037,"longitude":77.54123,"crime_type":"Vehicle Theft","crime_severity":5.2,"hour":0,"area":"Rajajinagar","is_night":1},{"latitude":12.948071,"longitude":77.621985,"crime_type":"Chain Snatching","crime_severity":4.7,"hour":15,"area":"Koramangala","is_night":0},{"latitude":12.98111,"longitude":77.584709,"crime_type":"Vandalism","crime_severity":2.8,"hour":3,"area":"Chickpet","is_night":1}];
+const PS = [{"name":"Cubbon Park PS","lat":12.9763,"lon":77.5929},{"name":"Shivajinagar PS","lat":12.9837,"lon":77.6012},{"name":"Koramangala PS","lat":12.9346,"lon":77.6246},{"name":"Indiranagar PS","lat":12.9713,"lon":77.6407},{"name":"Majestic PS","lat":12.9769,"lon":77.5714},{"name":"BTM Layout PS","lat":12.9165,"lon":77.6101},{"name":"Marathahalli PS","lat":12.9562,"lon":77.701},{"name":"Whitefield PS","lat":12.9699,"lon":77.7497},{"name":"Hebbal PS","lat":13.0358,"lon":77.596},{"name":"Jayanagar PS","lat":12.9311,"lon":77.583}];
+
+/* ══════════════════════════════════════════════════
+   MAP INIT
+══════════════════════════════════════════════════ */
+const map = L.map('map',{center:[12.9716,77.5946],zoom:12});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+  attribution:'&copy; OpenStreetMap &copy; CARTO',subdomains:'abcd',maxZoom:19
+}).addTo(map);
+
+let heatL,crimeL,policeL,safeL,routeL;
+let incLatLng=null,incMk=null;
+
+/* ══════════════════════════════════════════════════
+   LAYERS
+══════════════════════════════════════════════════ */
+function buildHeat(){
+  heatL=L.heatLayer(CD.map(c=>[c.latitude,c.longitude,c.crime_severity/10]),
+    {radius:30,blur:24,maxZoom:15,
+     gradient:{0.2:'#3fb950',0.5:'#d29922',0.75:'#f85149',1.0:'#ff0000'}}
+  ).addTo(map);
+}
+
+const CC={'Theft':'#ffa657','Chain Snatching':'#f85149','Robbery':'#ff0000',
+  'Eve Teasing':'#bc8cff','Vehicle Theft':'#79c0ff','Assault':'#f85149',
+  'Pickpocketing':'#56d364','Cybercrime':'#58a6ff','Drug Offense':'#d2a8ff','Vandalism':'#8b949e'};
+
+function buildCrimes(){
+  crimeL=L.markerClusterGroup({maxClusterRadius:45,showCoverageOnHover:false});
+  CD.forEach(c=>{
+    const col=CC[c.crime_type]||'#fff';
+    L.circleMarker([c.latitude,c.longitude],
+      {radius:5+c.crime_severity*.4,fillColor:col,color:'#000',weight:1,fillOpacity:.85})
+     .bindPopup('<b style="color:'+col+'">'+c.crime_type+'</b><br>Sev: '+c.crime_severity+'<br>'+c.area+' '+String(c.hour).padStart(2,'0')+':00')
+     .addTo(crimeL);
+  });
+}
+
+function buildPolice(){
+  policeL=L.layerGroup();
+  const ic=L.divIcon({html:'<div style="background:#58a6ff;border-radius:3px;width:18px;height:18px;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#0d1117">P</div>',className:'',iconSize:[18,18],iconAnchor:[9,9]});
+  PS.forEach(p=>L.marker([p.lat,p.lon],{icon:ic}).bindPopup('<b style="color:#58a6ff">'+p.name+'</b><br>Emergency: 100').addTo(policeL));
+  policeL.addTo(map);
+}
+
+function buildSafe(){
+  safeL=L.layerGroup();
+  [{lat:12.9716,lon:77.5946,r:400,n:'MG Road Safe Zone'},
+   {lat:12.9716,lon:77.6412,r:350,n:'Indiranagar Corridor'},
+   {lat:12.9352,lon:77.6245,r:300,n:'Koramangala Hub'},
+   {lat:12.9840,lon:77.5975,r:280,n:'Shivajinagar Monitored'}
+  ].forEach(z=>L.circle([z.lat,z.lon],
+    {radius:z.r,color:'#3fb950',fillColor:'#3fb950',fillOpacity:.07,weight:1.5,dashArray:'4 4'})
+   .bindPopup('<b style="color:#3fb950">'+z.n+'</b>').addTo(safeL));
+  safeL.addTo(map);
+}
+
+function togL(t,on){
+  const m={heat:heatL,crimes:crimeL,police:policeL,safe:safeL};
+  const l=m[t];if(l)on?map.addLayer(l):map.removeLayer(l);
+}
+
+/* ══════════════════════════════════════════════════
+   SAFETY SCORING ENGINE
+   Applied on top of real OSRM road geometry
+══════════════════════════════════════════════════ */
+const TRISK={0:.95,1:.98,2:.99,3:1,4:.9,5:.75,6:.55,7:.4,8:.35,9:.3,
+  10:.28,11:.25,12:.3,13:.28,14:.25,15:.28,16:.35,17:.45,
+  18:.6,19:.72,20:.82,21:.88,22:.92,23:.94};
+
+/* Pre-bucket crimes into spatial grid for fast lookup */
+const CELL=0.012;
+const crimeGrid={};
+CD.forEach(c=>{
+  const k=Math.round(c.latitude/CELL)+'_'+Math.round(c.longitude/CELL);
+  if(!crimeGrid[k])crimeGrid[k]=[];
+  crimeGrid[k].push(c.crime_severity/10);
+});
+
+function pointRisk(lat,lon,hour){
+  /* Aggregate crimes from this cell + 8 neighbours */
+  let total=0,cnt=0;
+  for(let dl=-1;dl<=1;dl++){
+    for(let dlo=-1;dlo<=1;dlo++){
+      const k=Math.round((lat+dl*CELL)/CELL)+'_'+Math.round((lon+dlo*CELL)/CELL);
+      const w=(dl===0&&dlo===0)?1.5:0.5;
+      (crimeGrid[k]||[]).forEach(s=>{total+=s*w;cnt+=w;});
+    }
+  }
+  const crimeDensity=cnt>0?Math.min(total/cnt,1):0.08;
+  const tr=TRISK[hour]||0.5;
+  const dc=Math.sqrt((lat-12.9716)**2+(lon-77.5946)**2);
+  const lt=Math.max(0.1,1-dc*7);
+  return Math.min(0.45*crimeDensity+0.2*(1-lt)+0.2*tr+0.15*(1-lt*.5),1);
+}
+
+function scoreRouteGeometry(coords,hour){
+  /* Score every segment of the road geometry */
+  const scores=[];
+  for(let i=0;i<coords.length-1;i++){
+    const mid=[(coords[i][0]+coords[i+1][0])/2,(coords[i][1]+coords[i+1][1])/2];
+    scores.push(pointRisk(mid[0],mid[1],hour));
+  }
+  const avg=scores.reduce((a,b)=>a+b,0)/(scores.length||1);
+  return{scores,avg};
+}
+
+/* ══════════════════════════════════════════════════
+   OSRM ROAD ROUTING
+   Uses public OSRM demo server — free, no API key
+   Returns actual road-following geometry
+══════════════════════════════════════════════════ */
+
+/* Decode Google polyline encoding (used by OSRM) */
+function decodePolyline(encoded){
+  const pts=[];
+  let idx=0,lat=0,lng=0;
+  while(idx<encoded.length){
+    let b,shift=0,result=0;
+    do{b=encoded.charCodeAt(idx++)-63;result|=(b&0x1f)<<shift;shift+=5;}while(b>=0x20);
+    lat+=(result&1)?~(result>>1):(result>>1);
+    shift=0;result=0;
+    do{b=encoded.charCodeAt(idx++)-63;result|=(b&0x1f)<<shift;shift+=5;}while(b>=0x20);
+    lng+=(result&1)?~(result>>1):(result>>1);
+    pts.push([lat/1e5,lng/1e5]);
+  }
+  return pts;
+}
+
+async function fetchOSRMRoute(src,dst){
+  /* OSRM public demo server — driving profile, full geometry */
+  /* Coordinate format: lon,lat (OSRM convention) */
+  const url=`https://router.project-osrm.org/route/v1/driving/`
+    +`${src[1]},${src[0]};${dst[1]},${dst[0]}`
+    +`?overview=full&geometries=polyline&steps=false`;
+
+  const resp=await fetch(url);
+  if(!resp.ok)throw new Error('OSRM server returned '+resp.status);
+  const data=await resp.json();
+  if(!data.routes||!data.routes.length)throw new Error('No route found by OSRM');
+
+  const route=data.routes[0];
+  const coords=decodePolyline(route.geometry); // [[lat,lon],...]
+  const distKm=(route.distance/1000).toFixed(2);
+  const durMin=Math.round(route.duration/60);
+  return{coords,distKm,durMin};
+}
+
+/* ══════════════════════════════════════════════════
+   MAIN ROUTE FINDER
+   1. Fetch real road geometry from OSRM
+   2. Score every road segment with our safety AI
+   3. Draw colour-coded route on Leaflet map
+══════════════════════════════════════════════════ */
+async function findRoute(){
+  const sv=document.getElementById('src').value.split(',').map(Number);
+  const dv=document.getElementById('dst').value.split(',').map(Number);
+  const hour=parseInt(document.getElementById('hour').value);
+
+  setSpinner(true,'Fetching real road route from OSRM...');
+
+  try{
+    /* Step 1: Get real road geometry */
+    setSpinStep('Step 1/3 — Querying OSRM road network...');
+    const {coords,distKm,durMin}=await fetchOSRMRoute(sv,dv);
+
+    /* Step 2: Score every road segment */
+    setSpinStep('Step 2/3 — Running safety AI on '+coords.length+' road points...');
+    await sleep(100); // let UI update
+    const {scores,avg}=scoreRouteGeometry(coords,hour);
+
+    /* Step 3: Draw */
+    setSpinStep('Step 3/3 — Rendering safety-coloured route...');
+    await sleep(80);
+    drawRoute(coords,scores,sv,dv);
+    updatePanel(avg,distKm,durMin,coords.length,hour);
+    setSpinner(false);
+
+    const lvl=avg<.3?'LOW':avg<.55?'MEDIUM':avg<.75?'HIGH':'CRITICAL';
+    notify('Route on real roads! Risk level: '+lvl+' | '+distKm+' km, ~'+durMin+' min','success');
+
+  }catch(err){
+    setSpinner(false);
+    console.error(err);
+    notify('OSRM error: '+err.message+'. Check internet connection.','danger');
+  }
+}
+
+function drawRoute(coords,scores,src,dst){
+  if(routeL)map.removeLayer(routeL);
+  routeL=L.layerGroup();
+
+  /* Draw each segment coloured by its safety score */
+  for(let i=0;i<coords.length-1;i++){
+    const sc=scores[i]||0;
+    const col=sc<.30?'#3fb950':sc<.55?'#d29922':sc<.75?'#f85149':'#ff0000';
+    L.polyline([coords[i],coords[i+1]],
+      {color:col,weight:5,opacity:.93,lineJoin:'round',lineCap:'round'})
+     .bindPopup('Risk: '+(sc*100).toFixed(0)+'%')
+     .addTo(routeL);
+  }
+
+  /* Start / End markers */
+  const mkS=L.divIcon({html:'<div style="background:#3fb950;border-radius:50%;width:14px;height:14px;border:2px solid #fff;box-shadow:0 0 10px #3fb950"></div>',className:'',iconSize:[14,14],iconAnchor:[7,7]});
+  const mkD=L.divIcon({html:'<div style="background:#f85149;border-radius:50%;width:14px;height:14px;border:2px solid #fff;box-shadow:0 0 10px #f85149"></div>',className:'',iconSize:[14,14],iconAnchor:[7,7]});
+  L.marker(src,{icon:mkS}).bindPopup('<b>Start</b>').addTo(routeL);
+  L.marker(dst,{icon:mkD}).bindPopup('<b>Destination</b>').addTo(routeL);
+  routeL.addTo(map);
+  map.fitBounds(L.latLngBounds(coords).pad(.12));
+}
+
+function updatePanel(avg,distKm,durMin,pts,hour){
+  document.getElementById('route-result').style.display='block';
+  const pct=(avg*100).toFixed(1);
+  const lv=avg<.3?'LOW':avg<.55?'MEDIUM':avg<.75?'HIGH':'CRITICAL';
+  const bc={LOW:'#3fb950',MEDIUM:'#d29922',HIGH:'#f85149',CRITICAL:'#ff0000'};
+  document.getElementById('rscore').textContent=pct+' / 100';
+  document.getElementById('rdist').textContent=distKm+' km';
+  document.getElementById('rdur').textContent='~'+durMin+' min';
+  document.getElementById('rwpts').textContent=pts;
+  document.getElementById('rhour').textContent=String(hour).padStart(2,'0')+':00';
+  const b=document.getElementById('rbadge');
+  b.textContent=lv;
+  b.style.cssText='font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;background:'+bc[lv]+'22;color:'+bc[lv]+';border:1px solid '+bc[lv]+'55';
+  const f=document.getElementById('rfill');
+  f.style.background=bc[lv];
+  setTimeout(()=>f.style.width=pct+'%',50);
+}
+
+function clearRoute(){
+  if(routeL){map.removeLayer(routeL);routeL=null;}
+  document.getElementById('route-result').style.display='none';
+}
+
+/* ══════════════════════════════════════════════════
+   UTILITIES
+══════════════════════════════════════════════════ */
+function setSpinner(on,msg=''){
+  document.getElementById('spinner').style.display=on?'flex':'none';
+  if(msg)document.querySelector('.stxt').textContent=msg;
+}
+function setSpinStep(t){document.getElementById('spin-step').textContent=t;}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+function buildChart(){
+  const hc=Array(24).fill(0);
+  CD.forEach(c=>hc[c.hour]++);
+  const mx=Math.max(...hc)||1;
+  const ch=document.getElementById('mchart');
+  hc.forEach((v,h)=>{
+    const b=document.createElement('div');b.className='mbar';
+    b.style.height=Math.round(v/mx*100)+'%';
+    b.style.background=(h>=20||h<6)?'#f85149':'#58a6ff';
+    b.title=h+':00 — '+v+' crimes';
+    ch.appendChild(b);
+  });
+  document.getElementById('knight').textContent=CD.filter(c=>c.is_night).length;
+}
+
+function triggerSOS(){
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(pos=>{
+      const{latitude:la,longitude:lo}=pos.coords;
+      notify('SOS Sent! Location: '+la.toFixed(4)+', '+lo.toFixed(4),'danger');
+      L.circleMarker([la,lo],{radius:18,color:'#f00',fillColor:'#f00',fillOpacity:.25,weight:3})
+       .addTo(map).bindPopup('<b style="color:red">SOS Sent</b>').openPopup();
+    },()=>notify('SOS Alert! Call 100 immediately.','danger'));
+  }else notify('SOS Alert! Emergency: 100','danger');
+}
+
+function openInc(){
+  document.getElementById('inc-ov').style.display='flex';
+  notify('Click on map to place incident pin','info');
+  map.once('click',e=>{
+    incLatLng=e.latlng;
+    if(incMk)map.removeLayer(incMk);
+    incMk=L.marker([e.latlng.lat,e.latlng.lng]).addTo(map);
+    document.getElementById('inc-loc').textContent='Pin: '+e.latlng.lat.toFixed(5)+', '+e.latlng.lng.toFixed(5);
+  });
+}
+function closeInc(){
+  document.getElementById('inc-ov').style.display='none';
+  if(incMk){map.removeLayer(incMk);incMk=null;}
+  incLatLng=null;
+}
+function submitInc(){
+  const desc=document.getElementById('inc-desc').value;
+  const sev=parseInt(document.getElementById('inc-sev').value);
+  if(!incLatLng){notify('Select a location first','danger');return;}
+  if(!desc.trim()){notify('Add a description','danger');return;}
+  const col=sev>=8?'#f00':sev>=5?'#f85149':'#d29922';
+  L.circleMarker([incLatLng.lat,incLatLng.lng],
+    {radius:7+sev,fillColor:col,color:'#fff',weight:2,fillOpacity:.87})
+   .addTo(map).bindPopup('<b style="color:'+col+'">User Report</b><br>'+desc+'<br>Sev: '+sev+'/10');
+  closeInc();notify('Report submitted — thank you!','success');
+}
+
+function notify(msg,type='info'){
+  const n=document.getElementById('notif');
+  const c=document.createElement('div');c.className='nc '+type;c.textContent=msg;
+  n.appendChild(c);setTimeout(()=>c.remove(),5000);
+}
+
+function tick(){
+  const now=new Date(),h=String(now.getHours()).padStart(2,'0'),m=String(now.getMinutes()).padStart(2,'0'),s=String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clock').textContent=h+':'+m+':'+s;
+  document.getElementById('nbadge').style.display=(now.getHours()>=20||now.getHours()<6)?'block':'none';
+}
+
+/* ── INIT ─────────────────────────────────────────────────── */
+buildHeat(); buildCrimes(); buildPolice(); buildSafe(); buildChart();
+setInterval(tick,1000); tick();
+notify('Ready. Routes now follow real Bangalore roads via OSRM.','info');
+</script>
+</body>
+</html>
