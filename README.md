@@ -1,7 +1,7 @@
 # 🛡️ NAMMA SAFE BLR
 ## AI-Powered Safe Navigation System for Bangalore Night Travel
 
-> **IEEE/Hackathon Grade Project** | Women's Safety | Urban Security | AI Navigation
+| Women's Safety | Urban Security | AI Navigation
 
 ---
 
@@ -205,24 +205,3 @@ Synthetic 1,500-record Bangalore crime dataset with realistic spatial clustering
 
 ---
 
-## 🏆 IEEE/Hackathon Demo Notes
-
-For live demo, start with:
-1. Show crime heatmap → identify red danger zones
-2. Enable crime incident markers → see clustering
-3. Select MG Road → BTM Layout route at 22:00
-4. Click "Find Safest Route" → watch A* avoid red zones
-5. Compare route panel: risk score, distance, waypoints
-6. Show analytics dashboard image (crime_dashboard.png)
-7. Demo SOS button + incident reporting
-
-**Tech stack highlights for judges:**
-- Geospatial AI: DBSCAN clustering, grid density mapping
-- ML Pipeline: Scikit-learn with cross-validation model selection
-- Graph Algorithms: A* with custom safety cost function
-- REST API: FastAPI with Pydantic validation
-- Frontend: Leaflet.js + custom dark UI
-
----
-
-*Built for IEEE Demo Day / Hackathon | Namma Safe BLR v1.0*
