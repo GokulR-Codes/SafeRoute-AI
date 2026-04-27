@@ -1,5 +1,5 @@
-# 🛡️ NAMMA SAFE BLR
-## AI-Powered Safe Navigation System for Bangalore Night Travel
+# 🛡️ SAFE ROUTE - AI
+## AI-Powered Safe Navigation System for Night Travel
 
 > **IEEE/Hackathon Grade Project** | Women's Safety | Urban Security | AI Navigation
 
@@ -7,7 +7,7 @@
 
 ## 🎯 Project Overview
 
-Namma Safe BLR is an AI-assisted navigation system that prioritizes **safety over speed** by analyzing:
+SafeRoute AI is an AI-assisted navigation system that prioritizes **safety over speed** by analyzing:
 - Crime density and hotspot patterns (DBSCAN clustering)
 - Street lighting availability
 - CCTV coverage estimation
@@ -28,7 +28,7 @@ Namma Safe BLR is an AI-assisted navigation system that prioritizes **safety ove
 ## 🏗️ Architecture
 
 ```
-NammaSafeBLR/
+SafeRoute AI/
 ├── backend/
 │   ├── app.py              # FastAPI REST API server
 │   ├── data_processing.py  # Crime data loading, DBSCAN clustering, density grids
@@ -225,4 +225,4 @@ For live demo, start with:
 
 ---
 
-*Built for IEEE Demo Day / Hackathon | Namma Safe BLR v1.0*
+
